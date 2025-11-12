@@ -1,0 +1,10 @@
+name: kemal-guardian
+version: 0.1.0
+
+authors:
+  - Henrik Christensen <sensen1695@icloud.com>
+
+crystal: '>= 1.18.2'
+
+license: MIT
+

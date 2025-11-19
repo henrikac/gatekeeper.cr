@@ -1,5 +1,9 @@
 # Gatekeeper
 
+[![CI](https://github.com/henrikac/gatekeeper.cr/actions/workflows/ci.yml/badge.svg)](https://github.com/henrikac/gatekeeper.cr/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/henrikac/gatekeeper.cr)](https://github.com/henrikac/gatekeeper.cr/releases)
+[![License](https://img.shields.io/github/license/henrikac/gatekeeper.cr)](./LICENSE)
+
 A small authorization middleware with pluggable authentication.
 - You define rules for your routes (using regex)
 - You define one or more authenticators (functions that return a user identity)

@@ -1,35 +1,35 @@
 require "./spec_helper"
 
-describe Kemal::Guardian::Config do
-  it "returns the same instance from Kemal::Guardian.config" do
-    c1 = Kemal::Guardian.config
-    c2 = Kemal::Guardian.config
+describe Gatekeeper::Config do
+  it "returns the same instance from Gatekeeper.config" do
+    c1 = Gatekeeper.config
+    c2 = Gatekeeper.config
 
     c1.should be c2
   end
 
   it "yields the singleton instance to the config block" do
-    yielded = nil.as(Kemal::Guardian::Config?)
+    yielded = nil.as(Gatekeeper::Config?)
 
-    Kemal::Guardian.config do |c|
+    Gatekeeper.config do |c|
       yielded = c
     end
 
-    yielded.should be Kemal::Guardian.config
+    yielded.should be Gatekeeper.config
   end
 
   it "has empty authenticators and auth_rules by default" do
-    cfg = Kemal::Guardian.config
+    cfg = Gatekeeper.config
 
     cfg.authenticators.empty?.should be_true
     cfg.auth_rules.empty?.should be_true
   end
 
   it "allows adding authenticators" do
-    cfg = Kemal::Guardian.config
+    cfg = Gatekeeper.config
     cfg.authenticators.clear
 
-    auth = ->(ctx : HTTP::Server::Context) { nil.as(Kemal::Guardian::Identity?) }
+    auth = ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
     cfg.authenticators << auth
 
     cfg.authenticators.size.should eq 1
@@ -37,9 +37,9 @@ describe Kemal::Guardian::Config do
   end
 
   it "allows adding rules" do
-    cfg = Kemal::Guardian.config
+    cfg = Gatekeeper.config
 
-    rule = Kemal::Guardian::Rule.new(/^\/admin/)
+    rule = Gatekeeper::Rule.new(/^\/admin/)
     cfg.auth_rules << rule
 
     cfg.auth_rules.size.should eq 1
@@ -47,7 +47,7 @@ describe Kemal::Guardian::Config do
   end
 
   it "allows setting unauthenticated and unauthorized callbacks" do
-    cfg = Kemal::Guardian.config
+    cfg = Gatekeeper.config
 
     unauth_called = false
     unauthorized_called = false

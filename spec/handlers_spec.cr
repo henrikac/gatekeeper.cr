@@ -1,12 +1,12 @@
 require "./spec_helper"
 
-describe Kemal::Guardian::AuthHandler do
+describe Gatekeeper::AuthHandler do
   it "allows when rule has no roles" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\//)
-    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Kemal::Guardian::Identity?) }
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\//)
+    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 
@@ -18,13 +18,13 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "allows when rule has roles and user has required role" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
-      Kemal::Guardian::IdentityUser(Int32).new 1, Set.new(["ROLE_ADMIN"])
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
+    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+      Gatekeeper::IdentityUser(Int32).new 1, Set.new(["ROLE_ADMIN"])
     end
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 
@@ -36,11 +36,11 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "returns 401 when the rule requires roles and no authenticator provides a user" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
-    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Kemal::Guardian::Identity?) }
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
+    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     request = HTTP::Request.new("GET", "/admin")
 
     io, ctx = create_request_and_return_io_and_context(handler, request)
@@ -49,13 +49,13 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "returns 403 when the rule requires roles and authenticator provides a user without valid role" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
-      Kemal::Guardian::IdentityUser(Int32).new 1, Set.new(["ROLE_USER"])
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
+    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+      Gatekeeper::IdentityUser(Int32).new 1, Set.new(["ROLE_USER"])
     end
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     request = HTTP::Request.new("GET", "/admin")
 
     io, ctx = create_request_and_return_io_and_context(handler, request)
@@ -64,26 +64,26 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "uses rule-specific authenticator instead of global authenticators" do
-    config = Kemal::Guardian.config
+    config = Gatekeeper.config
 
     rule_auth_called = false
-    rule_auth = ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
+    rule_auth = ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
       rule_auth_called = true
-      Kemal::Guardian::IdentityUser(Int32).new 1, Set.new(["ROLE_ADMIN"])
+      Gatekeeper::IdentityUser(Int32).new 1, Set.new(["ROLE_ADMIN"])
     end
 
-    config.auth_rules << Kemal::Guardian::Rule.new(
+    config.auth_rules << Gatekeeper::Rule.new(
       /^\/admin/,
       roles: ["ROLE_ADMIN"],
       authenticator: rule_auth
     )
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
+    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
       raise "global authenticator should not be called"
       nil
     end
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 
@@ -96,10 +96,10 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "passes through when rules exist but none match the request" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 
@@ -111,10 +111,10 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "ignores rule when HTTP method does not match" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"], methods: ["POST"])
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"], methods: ["POST"])
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 
@@ -126,27 +126,27 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "uses the first authenticator that returns a user" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
 
     calls = [] of Int32
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
+    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
       calls << 1
       nil
     end
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
+    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
       calls << 2
-      Kemal::Guardian::IdentityUser(Int32).new 1, Set{"ROLE_ADMIN"}
+      Gatekeeper::IdentityUser(Int32).new 1, Set{"ROLE_ADMIN"}
     end
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
+    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
       calls << 3
       nil
     end
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 
@@ -159,22 +159,22 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "returns 401 when rule authenticator is present but returns nil" do
-    config = Kemal::Guardian.config
+    config = Gatekeeper.config
 
     rule_auth_called = false
-    rule_auth = ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
+    rule_auth = ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
       rule_auth_called = true
       nil
     end
 
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"], authenticator: rule_auth)
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"], authenticator: rule_auth)
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Kemal::Guardian::Identity? do
+    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
       raise "global authenticator should not be called"
       nil
     end
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 
@@ -187,10 +187,10 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "calls on_unauthenticated callback on 401" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Kemal::Guardian::Identity?) }
+    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
 
     called = false
     config.on_unauthenticated = ->(ctx : HTTP::Server::Context) do
@@ -198,7 +198,7 @@ describe Kemal::Guardian::AuthHandler do
       ctx.response.print "custom 401"
     end
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 
@@ -212,11 +212,11 @@ describe Kemal::Guardian::AuthHandler do
   end
 
   it "calls on_unauthorized callback on 403" do
-    config = Kemal::Guardian.config
-    config.auth_rules << Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
+    config = Gatekeeper.config
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
 
-    user = Kemal::Guardian::IdentityUser(Int32).new 1, Set{"ROLE_USER"}
-    config.authenticators << ->(ctx : HTTP::Server::Context) { user.as(Kemal::Guardian::Identity?) }
+    user = Gatekeeper::IdentityUser(Int32).new 1, Set{"ROLE_USER"}
+    config.authenticators << ->(ctx : HTTP::Server::Context) { user.as(Gatekeeper::Identity?) }
 
     called = false
     config.on_unauthorized = ->(ctx : HTTP::Server::Context) do
@@ -224,7 +224,7 @@ describe Kemal::Guardian::AuthHandler do
       ctx.response.print "nope"
     end
 
-    handler = Kemal::Guardian::AuthHandler.new
+    handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
     handler.next = next_handler
 

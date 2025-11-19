@@ -1,4 +1,4 @@
-module Kemal::Guardian
+module Gatekeeper
   class Config
     INSTANCE = self.new
 

@@ -1,4 +1,4 @@
-module Kemal::Guardian
+module Gatekeeper
   abstract class Identity
     abstract def roles : Set(String)
   end

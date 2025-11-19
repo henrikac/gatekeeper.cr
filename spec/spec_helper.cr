@@ -1,24 +1,27 @@
+require "http/server/handler"
 require "spec"
 require "../src/**"
 
-class DummyHandler < Kemal::Handler
+class DummyHandler
+  include HTTP::Handler
+
   getter called = false
 
-  def call(ctx)
+  def call(context)
     @called = true
-    ctx.response.status_code = 200
+    context.response.status_code = 200
   end
 end
 
 def reset_guardian_config
-  config = Kemal::Guardian.config
+  config = Gatekeeper.config
   config.auth_rules.clear
   config.authenticators.clear
   config.on_unauthenticated = nil
   config.on_unauthorized = nil
 end
 
-def create_request_and_return_io_and_context(handler : Kemal::Handler, request : HTTP::Request)
+def create_request_and_return_io_and_context(handler : HTTP::Handler, request : HTTP::Request)
   io = IO::Memory.new
   response = HTTP::Server::Response.new(io)
   context = HTTP::Server::Context.new(request, response)

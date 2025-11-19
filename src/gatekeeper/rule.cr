@@ -1,4 +1,4 @@
-module Kemal::Guardian
+module Gatekeeper
   struct Rule
     getter path_regex : Regex
     getter methods : Array(String)?

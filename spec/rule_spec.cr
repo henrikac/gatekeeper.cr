@@ -1,8 +1,8 @@
 require "./spec_helper"
 
-describe Kemal::Guardian::Rule do
+describe Gatekeeper::Rule do
   it "matches when path matches and no methods are specified" do
-    rule = Kemal::Guardian::Rule.new(/^\/admin/)
+    rule = Gatekeeper::Rule.new(/^\/admin/)
     request = HTTP::Request.new("GET", "/admin/dashboard")
     io = IO::Memory.new
     response = HTTP::Server::Response.new(io)
@@ -12,7 +12,7 @@ describe Kemal::Guardian::Rule do
   end
 
   it "does not match when path does not match" do
-    rule = Kemal::Guardian::Rule.new(/^\/admin/)
+    rule = Gatekeeper::Rule.new(/^\/admin/)
     request = HTTP::Request.new("GET", "/public")
     io = IO::Memory.new
     response = HTTP::Server::Response.new(io)
@@ -22,7 +22,7 @@ describe Kemal::Guardian::Rule do
   end
 
   it "matches only when HTTP method is in methods list" do
-    rule = Kemal::Guardian::Rule.new(/^\/admin/, methods: ["POST"])
+    rule = Gatekeeper::Rule.new(/^\/admin/, methods: ["POST"])
     get_request = HTTP::Request.new("GET", "/admin")
     post_request = HTTP::Request.new("POST", "/admin")
 
@@ -39,7 +39,7 @@ describe Kemal::Guardian::Rule do
   end
 
   it "treats nil methods as 'all methods allowed'" do
-    rule = Kemal::Guardian::Rule.new(/^\/admin/, methods: nil)
+    rule = Gatekeeper::Rule.new(/^\/admin/, methods: nil)
     get_request = HTTP::Request.new("GET", "/admin")
     post_request = HTTP::Request.new("POST", "/admin")
 
@@ -56,14 +56,14 @@ describe Kemal::Guardian::Rule do
   end
 
   it "defaults roles to empty array" do
-    rule = Kemal::Guardian::Rule.new(/^\/admin/)
+    rule = Gatekeeper::Rule.new(/^\/admin/)
 
     rule.roles.empty?.should be_true
   end
 
   it "can store a rule-specific authenticator" do
-    auth = ->(ctx : HTTP::Server::Context) { nil.as(Kemal::Guardian::Identity?) }
-    rule = Kemal::Guardian::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"], authenticator: auth)
+    auth = ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
+    rule = Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"], authenticator: auth)
 
     rule.authenticator.should_not be_nil
   end

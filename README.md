@@ -98,7 +98,7 @@ puts "Listening on http://#{address}"
 server.listen
 ```
 
-### Basic example Kemal
+### Basic example using Kemal
 
 ```crystal
 require "kemal"

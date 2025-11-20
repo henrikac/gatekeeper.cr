@@ -186,10 +186,10 @@ end
 ```crystal
 config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
   token = ctx.request.headers["Authorization"]?
-  next nil unless token
+  return nil unless token
 
   user = MyUserRepository.find_by_token(token)
-  next nil unless user
+  return nil unless user
 
   Gatekeeper::IdentityUser(Int32).new(user.id, Set{"admin"})
 end

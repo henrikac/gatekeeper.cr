@@ -5,8 +5,8 @@ module Gatekeeper
     getter authenticators : Array(Authenticator) = [] of Authenticator
     getter auth_rules : Array(Rule) = [] of Rule
 
-    property on_unauthenticated : Proc(HTTP::Server::Context, Nil)?
-    property on_unauthorized : Proc(HTTP::Server::Context, Nil)?
+    property on_unauthenticated : ContextHandler?
+    property on_unauthorized : ContextHandler?
 
     def initialize
     end

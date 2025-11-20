@@ -29,7 +29,7 @@ describe Gatekeeper::Config do
     cfg = Gatekeeper.config
     cfg.authenticators.clear
 
-    auth = ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
+    auth = Gatekeeper::Authenticator.new { nil.as(Gatekeeper::Identity?) }
     cfg.authenticators << auth
 
     cfg.authenticators.size.should eq 1
@@ -52,11 +52,11 @@ describe Gatekeeper::Config do
     unauth_called = false
     unauthorized_called = false
 
-    cfg.on_unauthenticated = ->(ctx : HTTP::Server::Context) do
+    cfg.on_unauthenticated = Gatekeeper::ContextHandler.new do
       unauth_called = true
     end
 
-    cfg.on_unauthorized = ->(ctx : HTTP::Server::Context) do
+    cfg.on_unauthorized = Gatekeeper::ContextHandler.new do
       unauthorized_called = true
     end
 

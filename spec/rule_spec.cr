@@ -62,7 +62,7 @@ describe Gatekeeper::Rule do
   end
 
   it "can store a rule-specific authenticator" do
-    auth = ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
+    auth = Gatekeeper::Authenticator.new { nil.as(Gatekeeper::Identity?) }
     rule = Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"], authenticator: auth)
 
     rule.authenticator.should_not be_nil

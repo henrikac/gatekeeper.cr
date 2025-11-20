@@ -4,7 +4,7 @@ describe Gatekeeper::AuthHandler do
   it "allows when rule has no roles" do
     config = Gatekeeper.config
     config.auth_rules << Gatekeeper::Rule.new(/^\//)
-    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
+    config.authenticators << Gatekeeper::Authenticator.new { nil.as(Gatekeeper::Identity?) }
 
     handler = Gatekeeper::AuthHandler.new
     next_handler = DummyHandler.new
@@ -20,7 +20,7 @@ describe Gatekeeper::AuthHandler do
   it "allows when rule has roles and user has required role" do
     config = Gatekeeper.config
     config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    config.authenticators << Gatekeeper::Authenticator.new do
       Gatekeeper::IdentityUser(Int32).new 1, Set.new(["ROLE_ADMIN"])
     end
 
@@ -38,7 +38,7 @@ describe Gatekeeper::AuthHandler do
   it "returns 401 when the rule requires roles and no authenticator provides a user" do
     config = Gatekeeper.config
     config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
-    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
+    config.authenticators << Gatekeeper::Authenticator.new { nil.as(Gatekeeper::Identity?) }
 
     handler = Gatekeeper::AuthHandler.new
     request = HTTP::Request.new("GET", "/admin")
@@ -51,7 +51,7 @@ describe Gatekeeper::AuthHandler do
   it "returns 403 when the rule requires roles and authenticator provides a user without valid role" do
     config = Gatekeeper.config
     config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    config.authenticators << Gatekeeper::Authenticator.new do
       Gatekeeper::IdentityUser(Int32).new 1, Set.new(["ROLE_USER"])
     end
 
@@ -67,7 +67,7 @@ describe Gatekeeper::AuthHandler do
     config = Gatekeeper.config
 
     rule_auth_called = false
-    rule_auth = ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    rule_auth = Gatekeeper::Authenticator.new do
       rule_auth_called = true
       Gatekeeper::IdentityUser(Int32).new 1, Set.new(["ROLE_ADMIN"])
     end
@@ -78,7 +78,7 @@ describe Gatekeeper::AuthHandler do
       authenticator: rule_auth
     )
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    config.authenticators << Gatekeeper::Authenticator.new do
       raise "global authenticator should not be called"
       nil
     end
@@ -131,17 +131,17 @@ describe Gatekeeper::AuthHandler do
 
     calls = [] of Int32
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    config.authenticators << Gatekeeper::Authenticator.new do
       calls << 1
       nil
     end
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    config.authenticators << Gatekeeper::Authenticator.new do
       calls << 2
       Gatekeeper::IdentityUser(Int32).new 1, Set{"ROLE_ADMIN"}
     end
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    config.authenticators << Gatekeeper::Authenticator.new do
       calls << 3
       nil
     end
@@ -162,14 +162,14 @@ describe Gatekeeper::AuthHandler do
     config = Gatekeeper.config
 
     rule_auth_called = false
-    rule_auth = ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    rule_auth = Gatekeeper::Authenticator.new do
       rule_auth_called = true
       nil
     end
 
     config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"], authenticator: rule_auth)
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+    config.authenticators << Gatekeeper::Authenticator.new do
       raise "global authenticator should not be called"
       nil
     end
@@ -190,10 +190,10 @@ describe Gatekeeper::AuthHandler do
     config = Gatekeeper.config
     config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
 
-    config.authenticators << ->(ctx : HTTP::Server::Context) { nil.as(Gatekeeper::Identity?) }
+    config.authenticators << Gatekeeper::Authenticator.new { nil.as(Gatekeeper::Identity?) }
 
     called = false
-    config.on_unauthenticated = ->(ctx : HTTP::Server::Context) do
+    config.on_unauthenticated = Gatekeeper::ContextHandler.new do |ctx|
       called = true
       ctx.response.print "custom 401"
     end
@@ -216,10 +216,10 @@ describe Gatekeeper::AuthHandler do
     config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_ADMIN"])
 
     user = Gatekeeper::IdentityUser(Int32).new 1, Set{"ROLE_USER"}
-    config.authenticators << ->(ctx : HTTP::Server::Context) { user.as(Gatekeeper::Identity?) }
+    config.authenticators << Gatekeeper::Authenticator.new { user.as(Gatekeeper::Identity?) }
 
     called = false
-    config.on_unauthorized = ->(ctx : HTTP::Server::Context) do
+    config.on_unauthorized = Gatekeeper::ContextHandler.new do |ctx|
       called = true
       ctx.response.print "nope"
     end

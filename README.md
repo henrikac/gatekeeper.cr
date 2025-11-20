@@ -4,9 +4,9 @@
 [![Release](https://img.shields.io/github/v/release/henrikac/gatekeeper.cr)](https://github.com/henrikac/gatekeeper.cr/releases)
 [![License](https://img.shields.io/github/license/henrikac/gatekeeper.cr)](./LICENSE)
 
-A small authorization middleware with pluggable authentication.
+A small authorization middleware with pluggable authenticators.
 - You define rules for your routes (using regex)
-- You define one or more authenticators (functions that return a user identity)
+- You define one or more authenticators that resolve a user identity
 - Gatekeeper checks whether the user is allowed to access the route
 
 It does **not** implement login, sessions, JWT validation or password handling.
@@ -34,12 +34,12 @@ require "gatekeeper"
 # Configure Gatekeeper
 Gatekeeper.config do |config|
   # Called when no authenticator can produce a user
-  config.on_unauthenticated = ->(ctx : HTTP::Server::Context) do
+  config.on_unauthenticated = Gatekeeper::ContextHandler.new do |ctx|
     ctx.response.print "You must log in first."
   end
 
   # Called when a user exists but lacks the required roles
-  config.on_unauthorized = ->(ctx : HTTP::Server::Context) do
+  config.on_unauthorized = Gatekeeper::ContextHandler.new do |ctx|
     ctx.response.print "You do not have permission."
   end
 
@@ -53,7 +53,7 @@ Gatekeeper.config do |config|
   config.auth_rules << Gatekeeper::Rule.new(/^\//)
 
   # Simple authenticator that always logs in an "admin" user
-  config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+  config.authenticators << Gatekeeper.authenticator do |ctx|
     # In real code you’d look at cookies / headers / session etc.
     Gatekeeper::IdentityUser(Int32).new(1, Set{"admin"})
   end
@@ -130,26 +130,44 @@ Gatekeeper processes requests in this order:
 4. Rule matches + roles required → authenticators run
   - If no authenticator returns a user → `401 Unauthorized`
   - If a user exists but does not have a required role → `403 Forbidden`
-  - If the user has any of the allowed roles → request is forwarded
+  - If the user has any of the allowed roles → request continues to the next handler
 
 Rules are evaluated in the order they were added.
 
 ### Authenticators
 
-An authenticator is any `Proc` that takes a `HTTP::Server::Context` and returns:
-- an `Identity` (authenticated user), or
-- nil (not authenticated)
-
-All authenticators are tried in order until one returns a user.
-You can also assign an authenticator directly to a specific rule:
+An authenticator is a small object (`Gatekeeper::Authenticator`) that knows how to extract an `Identity` from a request.  
+If an authenticator returns `nil`, Gatekeeper moves on to the next one.  
+The first authenticator that returns a user “wins”.  
+A rule may also define its own authenticator, which overrides the global ones.
 
 ```crystal
-my_special_auth = ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+my_special_auth = Gatekeeper.authenticator do |ctx|
   # your logic here
 end
 
 Gatekeeper::Rule.new(/^\/private/, roles: ["member"], authenticator: my_special_auth)
 ```
+
+#### Named authenticator
+
+Authenticators may also be given a name, which is useful for debugging or when you have several different authentication strategies in the same application.
+
+```crystal
+token_auth = Gatekeeper.authenticator "token auth" do |ctx|
+  token = ctx.request.headers["Authorization"]?
+  next nil unless token
+
+  user = UserRepository.find_by_token(token)
+  next nil unless user
+
+  Gatekeeper::IdentityUser(Int32).new(user.id, Set{"member"})
+end
+
+config.authenticators << token_auth
+```
+
+You can also attach a named authenticator directly to a rule.
 
 ### Identity
 
@@ -184,12 +202,12 @@ end
 ### Authenticator example
 
 ```crystal
-config.authenticators << ->(ctx : HTTP::Server::Context) : Gatekeeper::Identity? do
+config.authenticators << Gatekeeper.authenticator do |ctx|
   token = ctx.request.headers["Authorization"]?
-  return nil unless token
+  next nil unless token
 
   user = MyUserRepository.find_by_token(token)
-  return nil unless user
+  next nil unless user
 
   Gatekeeper::IdentityUser(Int32).new(user.id, Set{"admin"})
 end
@@ -215,6 +233,30 @@ Gatekeeper::Rule.new(
 
 Rules are evaluated in the order they were added.
 The first matching rule is used.
+
+### ContextHandler
+
+`ContextHandler` is a small wrapper used for callbacks such as
+`on_unauthenticated` and `on_unauthorized`. It simply holds a block that
+receives the current `HTTP::Server::Context` and writes a custom response.
+
+```crystal
+config.on_unauthenticated = Gatekeeper::ContextHandler.new do |ctx|
+  ctx.response.print "You must log in first."
+end
+
+config.on_unauthorized = Gatekeeper::ContextHandler.new do |ctx|
+  ctx.response.print "You do not have permission."
+end
+```
+
+Gatekeeper calls these handlers internally when:
+
+- no authenticator returns a user → **401 Unauthorized**
+- a user exists but lacks the required role → **403 Forbidden**
+
+If no handler is set, Gatekeeper simply returns the status code
+without a body.
 
 ### ⚠️ Security Warning
 

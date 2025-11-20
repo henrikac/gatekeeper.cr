@@ -52,4 +52,16 @@ module Gatekeeper
       config.on_unauthorized.try &.call context
     end
   end
+
+  struct ContextHandler
+    getter handler : Proc(HTTP::Server::Context, Nil)
+
+    def initialize(&block : HTTP::Server::Context -> Nil)
+      @handler = block
+    end
+
+    def call(ctx : HTTP::Server::Context)
+      @handler.call(ctx)
+    end
+  end
 end

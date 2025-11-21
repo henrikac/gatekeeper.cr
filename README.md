@@ -31,32 +31,25 @@ You bring the authentication mechanism — Gatekeeper enforces access rules.
 ```crystal
 require "gatekeeper"
 
-# Configure Gatekeeper
 Gatekeeper.config do |config|
-  # Called when no authenticator can produce a user
   config.on_unauthenticated = Gatekeeper::ContextHandler.new do |ctx|
     ctx.response.print "You must log in first."
   end
 
-  # Called when a user exists but lacks the required roles
   config.on_unauthorized = Gatekeeper::ContextHandler.new do |ctx|
     ctx.response.print "You do not have permission."
   end
 
-  # Only allow users with role "admin" to access /admin
-  config.auth_rules << Gatekeeper::Rule.new(
-    /^\/admin/,
-    roles: ["admin"]
-  )
-
-  # Allow everyone to access everything else (no roles)
-  config.auth_rules << Gatekeeper::Rule.new(/^\//)
-
-  # Simple authenticator that always logs in an "admin" user
+  # Simple authenticator example
   config.authenticators << Gatekeeper.authenticator do |ctx|
-    # In real code you’d look at cookies / headers / session etc.
     Gatekeeper::IdentityUser(Int32).new(1, Set{"admin"})
   end
+end
+
+# Define rules using the rule DSL
+Gatekeeper.rules do |r|
+  r.allow "/admin", roles: ["admin"]   # exact match
+  r.allow /^\//                        # allow everything else
 end
 ```
 
@@ -226,13 +219,66 @@ Gatekeeper::Rule.new(
 )
 ```
 
-- `path_regex`: matched against ctx.request.path
+- `path_regex`: matched against `ctx.request.path`
 - `roles`: user must have at least one of these roles
 - `methods`: optional HTTP method filter (GET/POST/PUT/DELETE/etc.)
 - `authenticator`: optional override for this rule only
 
 Rules are evaluated in the order they were added.
 The first matching rule is used.
+
+### Rule helpers
+
+Gatekeeper includes a small convenience API to make rule definition more ergonomic.
+
+#### `Gatekeeper.allow`
+
+A helper that builds a `Rule` without needing to call `Rule.new` directly:
+
+```crystal
+rule = Gatekeeper.allow(
+  path : String | Regex,
+  roles : Array(String) = [],
+  methods : Array(String)? = nil,
+  authenticator : Gatekeeper::Authenticator? = nil
+)
+```
+
+**Path semantics:**
+
+- When `path` is a **String**, Gatekeeper converts it into an **exact match** regex.  
+  Example:  
+  `"/admin"` becomes `/^\/admin$/`, matching **only** `/admin`.
+
+- When `path` is a **Regex**, it is used **as-is**.  
+  Useful for prefixes or patterns such as:  
+  `/^\/api/` which matches `/api`, `/api/v1`, etc.
+
+Example:
+
+```crystal
+Gatekeeper.allow("/admin", roles: ["admin"])
+Gatekeeper.allow(/^\/api/, roles: ["api_user"])
+```
+
+---
+
+### Rule DSL (`Gatekeeper.rules`)
+
+Gatekeeper also provides a small builder-style DSL for defining multiple rules
+in a clean and structured way. It is simply syntactic sugar around `Gatekeeper.allow`.
+
+```crystal
+Gatekeeper.rules do |r|
+  r.allow "/admin", roles: ["admin"]
+  r.allow /^\/api/, roles: ["api_user"]
+end
+```
+
+This is equivalent to calling `Gatekeeper.allow` manually and pushing the rules
+into the configuration, but keeps rule definitions grouped and readable.
+
+Internally, this DSL just appends rules to `Gatekeeper.config.auth_rules`.
 
 ### ContextHandler
 

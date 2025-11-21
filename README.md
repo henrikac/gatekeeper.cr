@@ -46,10 +46,11 @@ Gatekeeper.config do |config|
   end
 end
 
-# Define rules using the rule DSL
 Gatekeeper.rules do |r|
-  r.allow "/admin", roles: ["admin"]   # exact match
-  r.allow /^\//                        # allow everything else
+  r.allow_get "/"                     # allow GET / (exact match)
+  r.allow_post "/login"               # allow POST /login
+  r.allow "/admin", roles: ["admin"]  # exact match
+  r.allow /^\/api/                    # prefix /api (regex as-is)
 end
 ```
 
@@ -261,22 +262,47 @@ Gatekeeper.allow("/admin", roles: ["admin"])
 Gatekeeper.allow(/^\/api/, roles: ["api_user"])
 ```
 
----
+### HTTP method helpers
+
+Gatekeeper also provides convenience helpers for common HTTP verbs:
+
+```crystal
+Gatekeeper.allow_get(path, roles = [], authenticator = nil)
+Gatekeeper.allow_post(path, roles = [], authenticator = nil)
+Gatekeeper.allow_put(path, roles = [], authenticator = nil)
+Gatekeeper.allow_patch(path, roles = [], authenticator = nil)
+Gatekeeper.allow_delete(path, roles = [], authenticator = nil)
+Gatekeeper.allow_options(path, roles = [], authenticator = nil)
+```
+
+These behave like `Gatekeeper.allow`, but automatically set the appropriate  
+`methods: ["GET"]`, `"POST"`, etc.
+
+Example:
+
+```crystal
+Gatekeeper.allow_get "/status"
+Gatekeeper.allow_post "/login"
+Gatekeeper.allow_put "/admin", roles: ["admin"]
+```
 
 ### Rule DSL (`Gatekeeper.rules`)
 
-Gatekeeper also provides a small builder-style DSL for defining multiple rules
-in a clean and structured way. It is simply syntactic sugar around `Gatekeeper.allow`.
+Gatekeeper also provides a small builder-style DSL for defining multiple rules in a clean and structured way.
+It is simply syntactic sugar around `Gatekeeper.allow`.
 
 ```crystal
 Gatekeeper.rules do |r|
   r.allow "/admin", roles: ["admin"]
   r.allow /^\/api/, roles: ["api_user"]
+
+  # HTTP verb helpers are also available inside the DSL:
+  r.allow_get "/"
+  r.allow_post "/login"
 end
 ```
 
-This is equivalent to calling `Gatekeeper.allow` manually and pushing the rules
-into the configuration, but keeps rule definitions grouped and readable.
+This is equivalent to calling `Gatekeeper.allow` manually and pushing the rules into the configuration, but keeps rule definitions grouped and readable.
 
 Internally, this DSL just appends rules to `Gatekeeper.config.auth_rules`.
 

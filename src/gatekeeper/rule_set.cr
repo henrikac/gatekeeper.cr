@@ -19,6 +19,18 @@ module Gatekeeper
       @config.auth_rules << rule
       rule
     end
+
+    {% for method in Gatekeeper::HTTP_METHODS %}
+      def allow_{{ method.id }}(
+        path : String | Regex,
+        roles : Array(String) = [] of String,
+        authenticator : Gatekeeper::Authenticator? = nil
+      ) : Rule
+        rule = Gatekeeper.allow_{{ method.id }}(path, roles: roles, authenticator: authenticator)
+        @config.auth_rules << rule
+        rule
+      end
+    {% end %}
   end
 
   def self.rules(&block : RuleSet ->)

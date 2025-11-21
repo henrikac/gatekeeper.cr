@@ -22,6 +22,23 @@ module Gatekeeper
     end
   end
 
+  HTTP_METHODS   = %w(get post put patch delete options)
+
+  {% for method in HTTP_METHODS %}
+    def self.allow_{{method.id}}(
+      path : String | Regex,
+      roles : Array(String) = [] of String,
+      authenticator : Authenticator? = nil
+    ) : Rule
+      allow(
+        path,
+        roles: roles,
+        methods: [{{ method.stringify.upcase }}],
+        authenticator: authenticator
+      )
+    end
+  {% end %}
+
   def self.allow(
     path : String | Regex,
     roles : Array(String) = [] of String,

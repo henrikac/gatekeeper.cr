@@ -142,6 +142,44 @@ describe "Gatekeeper.allow" do
     rule.authenticator.should_not be_nil
     rule.authenticator.should eq auth
   end
+
+{% for method in Gatekeeper::HTTP_METHODS %}
+    describe "Gatekeeper.allow_{{ method.id }}" do
+      it "creates a rule with correct methods and exact match semantics" do
+        rule = Gatekeeper.allow_{{ method.id }}("/path")
+
+        rule.methods.should_not be_nil
+        rule.methods.not_nil!.should eq [{{ method.stringify.upcase }}]
+
+        io = IO::Memory.new
+        response = HTTP::Server::Response.new(io)
+
+        ctx_correct = HTTP::Server::Context.new(
+          HTTP::Request.new({{ method.stringify.upcase }}, "/path"),
+          response
+        )
+
+        ctx_wrong_path = HTTP::Server::Context.new(
+          HTTP::Request.new({{ method.stringify.upcase }}, "/path/deeper"),
+          response
+        )
+
+        other_method = "GET"
+        {% if method.stringify.upcase == "GET" %}
+          other_method = "POST"
+        {% end %}
+
+        ctx_wrong_method = HTTP::Server::Context.new(
+          HTTP::Request.new(other_method, "/path"),
+          response
+        )
+
+        rule.matches?(ctx_correct).should be_true
+        rule.matches?(ctx_wrong_path).should be_false
+        rule.matches?(ctx_wrong_method).should be_false
+      end
+    end
+  {% end %}
 end
 
 describe "Gatekeeper.rules" do
@@ -165,4 +203,24 @@ describe "Gatekeeper.rules" do
     api_rule.path_regex.should eq /^\/api/
     api_rule.roles.should eq ["api"]
   end
+
+  {% for method in Gatekeeper::HTTP_METHODS %}
+    describe "#allow_{{ method.id }}" do
+      it "adds a rule to config.auth_rules with the correct HTTP method" do
+        cfg = Gatekeeper.config
+        cfg.auth_rules.clear
+
+        Gatekeeper.rules do |r|
+          r.allow_{{ method.id }}("/path")
+        end
+
+        cfg.auth_rules.size.should eq 1
+        rule = cfg.auth_rules.first
+
+        rule.path_regex.should eq /^\/path$/
+        rule.methods.should_not be_nil
+        rule.methods.not_nil!.should eq [{{ method.stringify.upcase }}]
+      end
+    end
+  {% end %}
 end

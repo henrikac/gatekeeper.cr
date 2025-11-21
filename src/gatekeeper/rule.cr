@@ -21,4 +21,17 @@ module Gatekeeper
       return true
     end
   end
+
+  def self.allow(
+    path : String | Regex,
+    roles : Array(String) = [] of String,
+    methods : Array(String)? = nil,
+    authenticator : Authenticator? = nil
+  ) : Rule
+    if path.is_a? String
+      path = Regex.new("^#{Regex.escape(path)}$")
+    end
+
+    Rule.new(path, roles: roles, methods: methods, authenticator: authenticator)
+  end
 end

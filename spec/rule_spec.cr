@@ -68,3 +68,101 @@ describe Gatekeeper::Rule do
     rule.authenticator.should_not be_nil
   end
 end
+
+describe "Gatekeeper.allow" do
+  it "creates a rule with an exact regex when given a String path" do
+    rule = Gatekeeper.allow("/admin")
+
+    rule.path_regex.should eq /^\/admin$/
+    rule.roles.should eq [] of String
+    rule.methods.should be_nil
+    rule.authenticator.should be_nil
+  end
+
+  it "does not match deeper paths when given a String (exact match only)" do
+    rule = Gatekeeper.allow("/admin")
+
+    io = IO::Memory.new
+    response = HTTP::Server::Response.new(io)
+
+    # /admin should match
+    ctx1 = HTTP::Server::Context.new(
+      HTTP::Request.new("GET", "/admin"),
+      response
+    )
+    rule.matches?(ctx1).should be_true
+
+    # /admin/dashboard should NOT match
+    ctx2 = HTTP::Server::Context.new(
+      HTTP::Request.new("GET", "/admin/dashboard"),
+      response
+    )
+    rule.matches?(ctx2).should be_false
+  end
+
+  it "uses a Regex path as-is" do
+    regex = /^\/api/
+    rule = Gatekeeper.allow(regex, roles: ["api"])
+
+    rule.path_regex.should eq regex
+    rule.roles.should eq ["api"]
+  end
+
+  it "uses regex as-is, allowing prefix matches" do
+    rule = Gatekeeper.allow(/^\/admin/)
+
+    io = IO::Memory.new
+    response = HTTP::Server::Response.new(io)
+
+    ctx = HTTP::Server::Context.new(
+      HTTP::Request.new("GET", "/admin/settings"),
+      response
+    )
+
+    rule.matches?(ctx).should be_true
+  end
+
+  it "passes roles, methods and authenticator through to the rule" do
+    auth = Gatekeeper.authenticator "test" do |ctx|
+      nil.as(Gatekeeper::Identity?)
+    end
+
+    rule = Gatekeeper.allow(
+      "/admin",
+      roles: ["admin"],
+      methods: ["POST"],
+      authenticator: auth
+    )
+
+    rule.roles.should eq ["admin"]
+
+    rule.methods.should_not be_nil
+    rule.methods.not_nil!.should eq ["POST"]
+
+    rule.authenticator.should_not be_nil
+    rule.authenticator.should eq auth
+  end
+end
+
+describe "Gatekeeper.rules" do
+  it "adds rules to the global config via the RuleSet builder" do
+    cfg = Gatekeeper.config
+    cfg.auth_rules.clear
+
+    Gatekeeper.rules do |r|
+      r.allow "/admin", roles: ["admin"]
+      r.allow /^\/api/, roles: ["api"]
+    end
+
+    cfg.auth_rules.size.should eq 2
+
+    admin_rule = cfg.auth_rules[0]
+    api_rule   = cfg.auth_rules[1]
+
+    admin_rule.path_regex.should eq /^\/admin$/
+    admin_rule.roles.should eq ["admin"]
+
+    api_rule.path_regex.should eq /^\/api/
+    api_rule.roles.should eq ["api"]
+  end
+end

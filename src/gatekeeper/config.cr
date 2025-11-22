@@ -11,12 +11,4 @@ module Gatekeeper
     def initialize
     end
   end
-
-  def self.config(&)
-    yield Config::INSTANCE
-  end
-
-  def self.config
-    Config::INSTANCE
-  end
 end

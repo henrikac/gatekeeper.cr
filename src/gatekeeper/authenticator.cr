@@ -14,8 +14,4 @@ module Gatekeeper
       @resolver.call(ctx)
     end
   end
-
-  def self.authenticator(name : String? = nil, &block : HTTP::Server::Context -> Identity?)
-    Authenticator.new(name, &block)
-  end
 end

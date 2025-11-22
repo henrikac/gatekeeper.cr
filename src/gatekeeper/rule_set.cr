@@ -32,9 +32,4 @@ module Gatekeeper
       end
     {% end %}
   end
-
-  def self.rules(&block : RuleSet ->)
-    builder = RuleSet.new(Gatekeeper.config)
-    yield builder
-  end
 end

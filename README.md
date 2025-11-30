@@ -44,6 +44,13 @@ Gatekeeper.config do |config|
   config.authenticators << Gatekeeper.authenticator do |ctx|
     Gatekeeper::IdentityUser(Int32).new(1, Set{"admin"})
   end
+
+  # Optional: role hierarchy
+  # "admin" inherits permissions from "user" and "reader"
+  config.role_hierarchy = {
+    "admin"  => ["user", "reader"],
+    "manager" => ["user"],
+  }
 end
 
 Gatekeeper.rules do |r|
@@ -206,6 +213,69 @@ config.authenticators << Gatekeeper.authenticator do |ctx|
   Gatekeeper::IdentityUser(Int32).new(user.id, Set{"admin"})
 end
 ```
+
+### Role hierarchy
+
+Gatekeeper supports an optional *role hierarchy*, allowing one role to imply one or more additional roles.
+
+This is useful when you have complex permission models or a natural “parent → child” role structure.
+With a hierarchy, a user with a high-level role automatically inherits the permissions of lower-level roles.
+
+Configure the hierarchy globally:
+
+```crystal
+Gatekeeper.config do |config|
+  config.role_hierarchy = {
+    "superadmin"     => ["admin", "auditor"],
+    "admin"          => ["manager", "support", "user"],
+    "manager"        => ["team_lead", "user"],
+    "support"        => ["user"],
+    "team_lead"      => ["user"],
+    "auditor"        => ["read_only"],
+  }
+end
+```
+
+Gatekeeper expands roles transitively at runtime.
+
+Example:
+
+- identity roles: `{"superadmin"}`
+- hierarchy expansion:
+  - superadmin → admin, auditor  
+  - admin → manager, support, user  
+  - manager → team_lead → user  
+  - auditor → read_only  
+- effective roles become:
+
+```
+{"superadmin", "admin", "auditor", "manager", "support", "team_lead", "user", "read_only"}
+```
+
+#### How hierarchy affects authorization
+
+Given a rule:
+
+```crystal
+Gatekeeper.allow "/reports", roles: ["team_lead"]
+```
+
+Case 1: Without hierarchy  
+- identity roles: `{"admin"}`
+- required role: `"team_lead"`
+- no hierarchy → `"admin"` does not imply `"team_lead"` → **403 Forbidden**
+
+Case 2: With hierarchy enabled  
+- identity roles: `{"admin"}`
+- hierarchy says: `admin → manager → team_lead`
+- expanded roles include `"team_lead"` → **allowed**
+
+#### Notes
+
+- Hierarchy is optional and defaults to `{}`.
+- Cycles (e.g., `"A" → "B" → "A"`) are handled safely.
+- Identity objects stay simple; hierarchy logic lives entirely in Gatekeeper’s authorization layer.
+- Hierarchies may be multi-level, branching, or diamond-shaped.
 
 ### Rules
 

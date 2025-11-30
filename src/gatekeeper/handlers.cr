@@ -42,10 +42,8 @@ module Gatekeeper
 
       identity = user.not_nil!
 
-      matching_rule.roles.each do |role|
-        if identity.roles.includes?(role)
-          return call_next context
-        end
+      if Gatekeeper::Roles.satisfied?(identity.roles, matching_rule.roles, config.role_hierarchy)
+        return call_next context
       end
 
       context.response.status = HTTP::Status::FORBIDDEN

@@ -19,6 +19,7 @@ def reset_guardian_config
   config.authenticators.clear
   config.on_unauthenticated = nil
   config.on_unauthorized = nil
+  config.role_hierarchy = {} of String => Array(String)
 end
 
 def create_request_and_return_io_and_context(handler : HTTP::Handler, request : HTTP::Request)

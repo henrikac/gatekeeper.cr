@@ -236,4 +236,48 @@ describe Gatekeeper::AuthHandler do
     ctx.response.status_code.should eq 403
     io.to_s.should contain "nope"
   end
+
+  it "allows when user only has parent role but hierarchy grants required child role" do
+    config = Gatekeeper.config
+
+    config.role_hierarchy = {
+      "ROLE_ADMIN" => ["ROLE_USER"],
+    } of String => Array(String)
+
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_USER"])
+
+    config.authenticators << Gatekeeper::Authenticator.new do
+      Gatekeeper::IdentityUser(Int32).new 1, Set{"ROLE_ADMIN"}
+    end
+
+    handler = Gatekeeper::AuthHandler.new
+    next_handler = DummyHandler.new
+    handler.next = next_handler
+
+    request = HTTP::Request.new("GET", "/admin")
+    io, ctx = create_request_and_return_io_and_context(handler, request)
+
+    next_handler.called.should be_true
+    ctx.response.status_code.should eq 200
+  end
+
+  it "returns 403 when user only has parent role and hierarchy is empty" do
+    config = Gatekeeper.config
+
+    config.auth_rules << Gatekeeper::Rule.new(/^\/admin/, roles: ["ROLE_USER"])
+
+    config.authenticators << Gatekeeper::Authenticator.new do
+      Gatekeeper::IdentityUser(Int32).new 1, Set{"ROLE_ADMIN"}
+    end
+
+    handler = Gatekeeper::AuthHandler.new
+    next_handler = DummyHandler.new
+    handler.next = next_handler
+
+    request = HTTP::Request.new("GET", "/admin")
+    io, ctx = create_request_and_return_io_and_context(handler, request)
+
+    next_handler.called.should be_false
+    ctx.response.status_code.should eq 403
+  end
 end

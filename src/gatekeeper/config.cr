@@ -7,6 +7,7 @@ module Gatekeeper
 
     property on_unauthenticated : ContextHandler?
     property on_unauthorized : ContextHandler?
+    property role_hierarchy : Hash(String, Array(String)) = {} of String => Array(String)
 
     def initialize
     end
